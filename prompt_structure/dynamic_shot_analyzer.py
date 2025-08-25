@@ -100,7 +100,8 @@ class DynamicShotDreamAnalyzer:
             "total_analyses": 0,
             "cache_hits": 0,
             "complexity_distribution": {},
-            "average_examples_used": 0.0
+            "total_examples_used": 0,
+            "analysis_count": 0  # Separate counter for average calculation
         }
     
     def _generate_cache_key(
@@ -140,6 +141,9 @@ class DynamicShotDreamAnalyzer:
         Returns:
             DynamicShotAnalysisResult containing the analysis
         """
+        # Always increment total analyses counter
+        self.performance_metrics["total_analyses"] += 1
+
         # Check cache first
         cache_key = self._generate_cache_key(task, dream_text, additional_context)
         if use_cache and cache_key in self.analysis_cache:
@@ -175,25 +179,13 @@ class DynamicShotDreamAnalyzer:
                 timestamp=datetime.now().isoformat()
             )
             
-            # Update metrics
-            self.performance_metrics["total_analyses"] += 1
+            # Update metrics for successful analysis
+            self.performance_metrics["analysis_count"] += 1
+            self.performance_metrics["total_examples_used"] += result.num_examples_used
+
             complexity = result.complexity.value
             self.performance_metrics["complexity_distribution"][complexity] = \
                 self.performance_metrics["complexity_distribution"].get(complexity, 0) + 1
-            
-            # Update average examples used
-            total_examples = sum(
-                self.analysis_cache[key].num_examples_used 
-                for key in self.analysis_cache
-                if isinstance(self.analysis_cache[key], DynamicShotAnalysisResult)
-            ) + result.num_examples_used
-            
-            total_analyses = len([
-                key for key in self.analysis_cache
-                if isinstance(self.analysis_cache[key], DynamicShotAnalysisResult)
-            ]) + 1
-            
-            self.performance_metrics["average_examples_used"] = total_examples / total_analyses
             
             # Cache the result
             if use_cache:
@@ -456,12 +448,23 @@ class DynamicShotDreamAnalyzer:
             self.performance_metrics["cache_hits"] / self.performance_metrics["total_analyses"]
             if self.performance_metrics["total_analyses"] > 0 else 0.0
         )
-        
+
+        average_examples_used = (
+            self.performance_metrics["total_examples_used"] / self.performance_metrics["analysis_count"]
+            if self.performance_metrics["analysis_count"] > 0 else 0.0
+        )
+
         return {
-            **self.performance_metrics,
+            "total_analyses": self.performance_metrics["total_analyses"],
+            "cache_hits": self.performance_metrics["cache_hits"],
             "cache_hit_rate": cache_hit_rate,
+            "complexity_distribution": self.performance_metrics["complexity_distribution"],
+            "total_examples_used": self.performance_metrics["total_examples_used"],
+            "analysis_count": self.performance_metrics["analysis_count"],
+            "average_examples_used": average_examples_used,
             "cache_size": len(self.analysis_cache),
-            "example_database_stats": self.prompt_builder.get_example_statistics()
+            "example_database_stats": self.prompt_builder.get_example_statistics(),
+            "usage_statistics": self.prompt_builder.get_usage_statistics()
         }
     
     def clear_cache(self) -> None:
@@ -475,6 +478,7 @@ class DynamicShotDreamAnalyzer:
             "total_analyses": 0,
             "cache_hits": 0,
             "complexity_distribution": {},
-            "average_examples_used": 0.0
+            "total_examples_used": 0,
+            "analysis_count": 0
         }
         logger.info("Reset dynamic shot performance metrics")

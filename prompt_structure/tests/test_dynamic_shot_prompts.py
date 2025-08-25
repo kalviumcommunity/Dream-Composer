@@ -83,8 +83,8 @@ class TestDynamicShotPromptBuilder:
         found_keywords = [kw for kw in expected_keywords if kw in keywords]
         assert len(found_keywords) >= 3  # Should find at least 3 of the expected keywords
     
-    def test_dream_example_matches_content(self):
-        """Test DreamExample content matching."""
+    def test_dream_example_relevance_calculation(self):
+        """Test DreamExample relevance calculation through public API."""
         example = DreamExample(
             dream_text="I was flying over a beautiful city at sunset.",
             analysis={"emotions": ["joy", "freedom"]},
@@ -92,13 +92,13 @@ class TestDynamicShotPromptBuilder:
             complexity=DreamComplexity.SIMPLE,
             keywords=["flying", "city", "sunset", "beautiful"]
         )
-        
+
         # Should match similar content
-        score1 = example.matches_content("I was flying over a town", ["flying", "town"])
+        score1 = self.builder.calculate_example_relevance(example, "I was flying over a town", ["flying", "town"])
         assert score1 > 0.3
-        
+
         # Should not match very different content
-        score2 = example.matches_content("I was swimming underwater", ["swimming", "underwater"])
+        score2 = self.builder.calculate_example_relevance(example, "I was swimming underwater", ["swimming", "underwater"])
         assert score2 < 0.3
     
     def test_select_dynamic_examples_simple(self):
@@ -254,12 +254,34 @@ class TestDynamicShotPromptBuilder:
         assert isinstance(stats["complexity_distribution"], dict)
         assert isinstance(stats["example_types"], dict)
     
+    def test_get_usage_statistics(self):
+        """Test getting usage statistics."""
+        # Initially should have empty statistics
+        stats = self.builder.get_usage_statistics()
+        assert stats["total_usages"] == 0
+        assert stats["unique_examples"] == 0
+        assert stats["most_used_examples"] == []
+
+        # Add some usage history manually for testing
+        self.builder.usage_history["task1:example1"] = 3
+        self.builder.usage_history["task1:example2"] = 1
+        self.builder.usage_history["task2:example3"] = 2
+
+        # Get updated statistics
+        stats = self.builder.get_usage_statistics()
+        assert stats["total_usages"] == 6
+        assert stats["unique_examples"] == 3
+        assert len(stats["most_used_examples"]) > 0
+        assert stats["usage_distribution"]["min_usage"] == 1
+        assert stats["usage_distribution"]["max_usage"] == 3
+        assert stats["usage_distribution"]["avg_usage"] == 2.0
+
     def test_clear_usage_history(self):
         """Test clearing usage history."""
         # Add some usage history
         self.builder.usage_history["test_key"] = 5
         assert len(self.builder.usage_history) > 0
-        
+
         # Clear history
         self.builder.clear_usage_history()
         assert len(self.builder.usage_history) == 0

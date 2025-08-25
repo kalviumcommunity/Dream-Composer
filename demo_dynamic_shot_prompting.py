@@ -50,6 +50,55 @@ def print_subheader(title: str, emoji: str = "📊"):
     print("-" * (len(title) + 4))
 
 
+def safe_get_analysis_field(analysis_result, field_name: str, default="Not available"):
+    """
+    Safely extract a field from analysis results with proper error handling.
+
+    Args:
+        analysis_result: The analysis result object
+        field_name: The field name to extract
+        default: Default value if field is not available
+
+    Returns:
+        The field value or default if not available
+    """
+    if not analysis_result or not hasattr(analysis_result, 'analysis'):
+        return default
+
+    try:
+        value = analysis_result.analysis.get(field_name)
+        if value is None:
+            return default
+        return value
+    except (AttributeError, TypeError):
+        return default
+
+
+def format_list_field(value, max_items: int = 3, separator: str = ", ") -> str:
+    """
+    Safely format a list field for display.
+
+    Args:
+        value: The value to format (should be a list)
+        max_items: Maximum number of items to display
+        separator: Separator between items
+
+    Returns:
+        Formatted string representation
+    """
+    if not value:
+        return "Not available"
+
+    if not isinstance(value, list):
+        return str(value)
+
+    try:
+        formatted_items = [str(item) for item in value[:max_items]]
+        return separator.join(formatted_items)
+    except (TypeError, ValueError):
+        return "Not available"
+
+
 def demo_complexity_analysis():
     """Demonstrate dream complexity analysis."""
     print_header("Dream Complexity Analysis", "🧠")
@@ -107,7 +156,7 @@ def demo_example_selection():
         print(f"Selected Examples: {len(selected_examples)}")
         
         for i, example in enumerate(selected_examples, 1):
-            relevance = example.matches_content(dream_text, keywords)
+            relevance = builder.calculate_example_relevance(example, dream_text, keywords)
             print(f"  {i}. {example.dream_text[:60]}... (Relevance: {relevance:.2f})")
 
 
@@ -152,20 +201,28 @@ def demo_dynamic_shot_analysis():
         print(f"Overall Confidence: {analysis.overall_confidence:.2f}")
         print(f"Total Examples Used: {analysis.total_examples_used}")
         
-        # Show key findings from each analysis
-        if analysis.emotion_analysis:
-            emotions = analysis.emotion_analysis.analysis.get("primary_emotions", ["N/A"])
-            print(f"Primary Emotions: {', '.join(emotions[:3])}")
-        
-        if analysis.musical_recommendation:
-            style = analysis.musical_recommendation.analysis.get("recommended_style", "N/A")
-            print(f"Musical Style: {style}")
-        
-        if analysis.symbolism_interpretation:
-            symbols = analysis.symbolism_interpretation.analysis.get("symbols", [])
-            if symbols and isinstance(symbols, list) and len(symbols) > 0:
-                symbol_names = [s.get("element", "unknown") for s in symbols[:2]]
-                print(f"Key Symbols: {', '.join(symbol_names)}")
+        # Show key findings from each analysis with safe access
+        emotions = safe_get_analysis_field(analysis.emotion_analysis, "primary_emotions", [])
+        emotions_str = format_list_field(emotions, max_items=3)
+        print(f"Primary Emotions: {emotions_str}")
+
+        style = safe_get_analysis_field(analysis.musical_recommendation, "recommended_style")
+        print(f"Musical Style: {style}")
+
+        # Handle symbols with special formatting
+        symbols = safe_get_analysis_field(analysis.symbolism_interpretation, "symbols", [])
+        if symbols and isinstance(symbols, list):
+            try:
+                symbol_names = []
+                for s in symbols[:2]:
+                    if isinstance(s, dict) and "element" in s:
+                        symbol_names.append(str(s["element"]))
+                symbols_str = format_list_field(symbol_names, max_items=2)
+                print(f"Key Symbols: {symbols_str}")
+            except (TypeError, KeyError):
+                print(f"Key Symbols: Not available")
+        else:
+            print(f"Key Symbols: Not available")
 
 
 def demo_prompt_building():

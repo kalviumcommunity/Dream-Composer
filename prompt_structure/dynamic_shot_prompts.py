@@ -50,27 +50,32 @@ class DreamExample:
     keywords: List[str]
     cultural_context: Optional[str] = None
     
-    def matches_content(self, dream_text: str, keywords: List[str]) -> float:
-        """Calculate relevance score for this example."""
+    def _calculate_relevance_score(self, dream_text: str, keywords: List[str]) -> float:
+        """
+        Calculate relevance score for this example (internal method).
+
+        This is an internal method that should not be called directly.
+        Use DynamicShotPromptBuilder.calculate_example_relevance() instead.
+        """
         score = 0.0
-        
+
         # Keyword matching
         dream_lower = dream_text.lower()
         matching_keywords = sum(1 for kw in self.keywords if kw.lower() in dream_lower)
         if self.keywords:
             score += (matching_keywords / len(self.keywords)) * 0.4
-        
+
         # Content similarity (simple word overlap)
         example_words = set(self.dream_text.lower().split())
         dream_words = set(dream_text.lower().split())
         if example_words and dream_words:
             overlap = len(example_words.intersection(dream_words))
             score += (overlap / len(example_words.union(dream_words))) * 0.3
-        
+
         # Length similarity
         length_ratio = min(len(dream_text), len(self.dream_text)) / max(len(dream_text), len(self.dream_text))
         score += length_ratio * 0.3
-        
+
         return min(score, 1.0)
 
 
@@ -305,20 +310,14 @@ class DynamicShotPromptBuilder:
         # Calculate relevance scores for each example
         scored_examples = []
         for example in available_examples:
-            relevance_score = example.matches_content(dream_text, keywords)
-            
+            relevance_score = self.calculate_example_relevance(example, dream_text, keywords)
+
             # Adjust score based on complexity matching
-            complexity_bonus = 0.0
-            if example.complexity == complexity:
-                complexity_bonus = 0.2
-            elif abs(list(DreamComplexity).index(example.complexity) - 
-                    list(DreamComplexity).index(complexity)) == 1:
-                complexity_bonus = 0.1
-            
+            complexity_bonus = self._calculate_complexity_bonus(example.complexity, complexity)
+
             # Diversity penalty for recently used examples
-            usage_key = f"{task.value}:{example.dream_text[:50]}"
-            usage_penalty = self.usage_history.get(usage_key, 0) * 0.1
-            
+            usage_penalty = self._calculate_usage_penalty(task, example)
+
             final_score = relevance_score + complexity_bonus - usage_penalty
 
             # Use a more lenient threshold for selection
@@ -336,15 +335,13 @@ class DynamicShotPromptBuilder:
         if not scored_examples and available_examples:
             # Take the best available example regardless of threshold
             best_example = max(available_examples,
-                             key=lambda ex: ex.matches_content(dream_text, keywords))
+                             key=lambda ex: self.calculate_example_relevance(ex, dream_text, keywords))
             selected_examples = [best_example]
         else:
             selected_examples = [ex for ex, score in scored_examples[:num_examples]]
-        
+
         # Update usage history
-        for example in selected_examples:
-            usage_key = f"{task.value}:{example.dream_text[:50]}"
-            self.usage_history[usage_key] = self.usage_history.get(usage_key, 0) + 1
+        self._update_usage_history(task, selected_examples)
         
         logger.debug(f"Selected {len(selected_examples)} examples for {task.value} with complexity {complexity.value}")
         
@@ -513,6 +510,79 @@ class DynamicShotPromptBuilder:
         
         return stats
     
+    def calculate_example_relevance(self, example: DreamExample, dream_text: str, keywords: List[str]) -> float:
+        """
+        Calculate relevance score between an example and dream content.
+
+        Public API method for calculating how relevant an example is to given dream content.
+
+        Args:
+            example: The dream example to score
+            dream_text: The dream description to match against
+            keywords: Extracted keywords from the dream
+
+        Returns:
+            Relevance score between 0.0 and 1.0
+        """
+        return example._calculate_relevance_score(dream_text, keywords)
+
+    def _calculate_complexity_bonus(self, example_complexity: DreamComplexity, dream_complexity: DreamComplexity) -> float:
+        """Calculate bonus score for complexity matching (private method)."""
+        if example_complexity == dream_complexity:
+            return 0.2
+        elif abs(list(DreamComplexity).index(example_complexity) -
+                list(DreamComplexity).index(dream_complexity)) == 1:
+            return 0.1
+        return 0.0
+
+    def _calculate_usage_penalty(self, task: ZeroShotTask, example: DreamExample) -> float:
+        """Calculate penalty for frequently used examples (private method)."""
+        usage_key = f"{task.value}:{example.dream_text[:50]}"
+        return self.usage_history.get(usage_key, 0) * 0.1
+
+    def _update_usage_history(self, task: ZeroShotTask, selected_examples: List[DreamExample]) -> None:
+        """Update usage history for selected examples (private method)."""
+        for example in selected_examples:
+            usage_key = f"{task.value}:{example.dream_text[:50]}"
+            self.usage_history[usage_key] = self.usage_history.get(usage_key, 0) + 1
+
+    def get_usage_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about example usage patterns.
+
+        Returns:
+            Dictionary containing usage statistics
+        """
+        if not self.usage_history:
+            return {
+                "total_usages": 0,
+                "unique_examples": 0,
+                "most_used_examples": [],
+                "usage_distribution": {}
+            }
+
+        total_usages = sum(self.usage_history.values())
+        unique_examples = len(self.usage_history)
+
+        # Get most used examples
+        sorted_usage = sorted(self.usage_history.items(), key=lambda x: x[1], reverse=True)
+        most_used = [(key.split(':', 1)[1], count) for key, count in sorted_usage[:5]]
+
+        # Usage distribution
+        usage_counts = list(self.usage_history.values())
+        usage_distribution = {
+            "min_usage": min(usage_counts),
+            "max_usage": max(usage_counts),
+            "avg_usage": total_usages / unique_examples
+        }
+
+        return {
+            "total_usages": total_usages,
+            "unique_examples": unique_examples,
+            "most_used_examples": most_used,
+            "usage_distribution": usage_distribution
+        }
+
     def clear_usage_history(self) -> None:
         """Clear the usage history for fresh example selection."""
         self.usage_history.clear()

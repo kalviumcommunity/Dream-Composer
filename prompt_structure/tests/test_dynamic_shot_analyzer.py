@@ -43,7 +43,8 @@ class TestDynamicShotDreamAnalyzer:
         assert metrics["total_analyses"] == 0
         assert metrics["cache_hits"] == 0
         assert isinstance(metrics["complexity_distribution"], dict)
-        assert metrics["average_examples_used"] == 0.0
+        assert metrics["total_examples_used"] == 0
+        assert metrics["analysis_count"] == 0
     
     def test_generate_cache_key(self):
         """Test cache key generation."""
@@ -310,10 +311,15 @@ class TestDynamicShotDreamAnalyzer:
         assert "cache_hit_rate" in metrics
         assert "cache_size" in metrics
         assert "example_database_stats" in metrics
-        
+        assert "usage_statistics" in metrics
+        assert "analysis_count" in metrics
+        assert "total_examples_used" in metrics
+
         assert metrics["total_analyses"] >= 2
         assert isinstance(metrics["cache_hit_rate"], float)
         assert 0.0 <= metrics["cache_hit_rate"] <= 1.0
+        assert isinstance(metrics["average_examples_used"], float)
+        assert metrics["average_examples_used"] >= 0.0
     
     def test_clear_cache(self):
         """Test clearing the analysis cache."""
@@ -346,7 +352,8 @@ class TestDynamicShotDreamAnalyzer:
         assert metrics["total_analyses"] == 0
         assert metrics["cache_hits"] == 0
         assert metrics["complexity_distribution"] == {}
-        assert metrics["average_examples_used"] == 0.0
+        assert metrics["total_examples_used"] == 0
+        assert metrics["analysis_count"] == 0
     
     def test_simulate_dynamic_shot_response_emotion_analysis(self):
         """Test simulated response for emotion analysis."""
