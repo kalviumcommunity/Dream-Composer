@@ -11,6 +11,8 @@ from .music_mapper import MusicMapper
 from .emotion_extractor import EmotionExtractor
 from .zero_shot_prompts import ZeroShotPromptBuilder, ZeroShotTask
 from .zero_shot_analyzer import ZeroShotDreamAnalyzer, ZeroShotAnalysisResult, ComprehensiveZeroShotAnalysis
+from .dynamic_shot_prompts import DynamicShotPromptBuilder, DreamComplexity, ExampleType, DreamExample, DynamicShotConfig
+from .dynamic_shot_analyzer import DynamicShotDreamAnalyzer, DynamicShotAnalysisResult, ComprehensiveDynamicShotAnalysis
 
 __all__ = [
     'PromptBuilder',
@@ -22,5 +24,13 @@ __all__ = [
     'ZeroShotTask',
     'ZeroShotDreamAnalyzer',
     'ZeroShotAnalysisResult',
-    'ComprehensiveZeroShotAnalysis'
+    'ComprehensiveZeroShotAnalysis',
+    'DynamicShotPromptBuilder',
+    'DreamComplexity',
+    'ExampleType',
+    'DreamExample',
+    'DynamicShotConfig',
+    'DynamicShotDreamAnalyzer',
+    'DynamicShotAnalysisResult',
+    'ComprehensiveDynamicShotAnalysis'
 ]
