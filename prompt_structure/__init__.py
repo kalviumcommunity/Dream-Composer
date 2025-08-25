@@ -15,6 +15,8 @@ from .dynamic_shot_prompts import DynamicShotPromptBuilder, DreamComplexity, Exa
 from .dynamic_shot_analyzer import DynamicShotDreamAnalyzer, DynamicShotAnalysisResult, ComprehensiveDynamicShotAnalysis
 from .one_shot_prompts import OneShotPromptBuilder, OneShotStrategy, OneShotConfig
 from .one_shot_analyzer import OneShotDreamAnalyzer, OneShotAnalysisResult, ComprehensiveOneShotAnalysis
+from .multi_shot_prompts import MultiShotPromptBuilder, MultiShotStrategy, MultiShotConfig
+from .multi_shot_analyzer import MultiShotDreamAnalyzer, MultiShotAnalysisResult, ComprehensiveMultiShotAnalysis
 
 __all__ = [
     'PromptBuilder',
@@ -40,5 +42,11 @@ __all__ = [
     'OneShotConfig',
     'OneShotDreamAnalyzer',
     'OneShotAnalysisResult',
-    'ComprehensiveOneShotAnalysis'
+    'ComprehensiveOneShotAnalysis',
+    'MultiShotPromptBuilder',
+    'MultiShotStrategy',
+    'MultiShotConfig',
+    'MultiShotDreamAnalyzer',
+    'MultiShotAnalysisResult',
+    'ComprehensiveMultiShotAnalysis'
 ]
