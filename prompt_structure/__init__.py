@@ -9,11 +9,18 @@ from .prompt_builder import PromptBuilder, PromptType
 from .dream_analyzer import DreamAnalyzer
 from .music_mapper import MusicMapper
 from .emotion_extractor import EmotionExtractor
+from .zero_shot_prompts import ZeroShotPromptBuilder, ZeroShotTask
+from .zero_shot_analyzer import ZeroShotDreamAnalyzer, ZeroShotAnalysisResult, ComprehensiveZeroShotAnalysis
 
 __all__ = [
     'PromptBuilder',
     'PromptType',
     'DreamAnalyzer',
     'MusicMapper',
-    'EmotionExtractor'
+    'EmotionExtractor',
+    'ZeroShotPromptBuilder',
+    'ZeroShotTask',
+    'ZeroShotDreamAnalyzer',
+    'ZeroShotAnalysisResult',
+    'ComprehensiveZeroShotAnalysis'
 ]
