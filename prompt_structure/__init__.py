@@ -13,6 +13,8 @@ from .zero_shot_prompts import ZeroShotPromptBuilder, ZeroShotTask
 from .zero_shot_analyzer import ZeroShotDreamAnalyzer, ZeroShotAnalysisResult, ComprehensiveZeroShotAnalysis
 from .dynamic_shot_prompts import DynamicShotPromptBuilder, DreamComplexity, ExampleType, DreamExample, DynamicShotConfig
 from .dynamic_shot_analyzer import DynamicShotDreamAnalyzer, DynamicShotAnalysisResult, ComprehensiveDynamicShotAnalysis
+from .one_shot_prompts import OneShotPromptBuilder, OneShotStrategy, OneShotConfig
+from .one_shot_analyzer import OneShotDreamAnalyzer, OneShotAnalysisResult, ComprehensiveOneShotAnalysis
 
 __all__ = [
     'PromptBuilder',
@@ -32,5 +34,11 @@ __all__ = [
     'DynamicShotConfig',
     'DynamicShotDreamAnalyzer',
     'DynamicShotAnalysisResult',
-    'ComprehensiveDynamicShotAnalysis'
+    'ComprehensiveDynamicShotAnalysis',
+    'OneShotPromptBuilder',
+    'OneShotStrategy',
+    'OneShotConfig',
+    'OneShotDreamAnalyzer',
+    'OneShotAnalysisResult',
+    'ComprehensiveOneShotAnalysis'
 ]
