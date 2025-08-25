@@ -12,9 +12,22 @@ import sys
 import os
 from prompt_structure import DreamAnalyzer, PromptBuilder, PromptType
 
-# Ensure UTF-8 encoding for console output
-if sys.stdout.encoding != 'utf-8':
-    sys.stdout.reconfigure(encoding='utf-8')
+# Ensure UTF-8 encoding for console output with safe detection
+def configure_utf8_output():
+    """Safely configure UTF-8 output with proper error handling."""
+    try:
+        # Check if stdout has encoding attribute and reconfigure method
+        if (hasattr(sys.stdout, 'encoding') and
+            hasattr(sys.stdout, 'reconfigure') and
+            sys.stdout.encoding is not None and
+            sys.stdout.encoding.lower() != 'utf-8'):
+            sys.stdout.reconfigure(encoding='utf-8')
+    except (AttributeError, OSError, ValueError):
+        # Fallback: continue without reconfiguration
+        # This handles cases where reconfigure is not available or fails
+        pass
+
+configure_utf8_output()
 
 # Fallback emoji handling for terminals that don't support UTF-8
 def safe_print(text: str, fallback_text: str = None) -> None:
