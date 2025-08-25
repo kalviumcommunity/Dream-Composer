@@ -2,69 +2,65 @@
 
 ## 📖 Project Overview  
 
-**Dream Composer** is an AI-powered application that transforms users’ dreams into personalized music. By analyzing dream descriptions through natural language processing (NLP) and combining insights from psychology and music theory, the system generates a unique piece of music with mood visualizations and sheet notation.  
+**Dream Composer** is an AI-powered application that transforms users’ dreams into personalized music.  
+By analyzing dream descriptions through natural language processing (NLP) and mapping emotions to music theory, the system generates melodies, sheet notation, and mood-based visualizations.  
 
-This project not only focuses on creativity but also demonstrates strong programming principles: **Correctness, Efficiency, and Scalability**.  
+This project demonstrates programming principles of **Correctness, Efficiency, and Scalability** while keeping the scope practical and achievable.  
 
 ---
 
 ## 🚀 Core Objectives  
 
 ### ✅ Correctness  
-- The system accurately interprets dream descriptions.  
-- Maps emotions and dream symbols to relevant musical elements (tempo, scale, instruments).  
-- Returns a correct music output (MIDI/audio + sheet music + mood visualization) based on the user’s input.  
+- Map dream descriptions to emotions and music parameters (tempo, key, instruments).  
+- Generate music and visualizations that consistently reflect the interpreted mood.  
 
 ### ⚡ Efficiency  
-- Optimized APIs for dream analysis and music generation.  
-- Caching for repeated requests to avoid re-computation.  
-- Lightweight audio generation to minimize latency.  
+- Optimized API requests for NLP and music generation.  
+- Use caching strategies for repeated requests to reduce re-processing.  
 
 ### 📈 Scalability  
-- API-first architecture to handle high user traffic.  
-- Cloud-based deployment for large-scale music generation.  
-- Modular microservices (dream analysis, music generation, visualization) to scale independently.  
+- Current implementation: single-service API.  
+- Roadmap: modular design (analysis, generation, visualization) that can evolve into microservices for higher traffic.  
 
 ---
 
 ## 🛠️ Tech Stack  
 
-- **Frontend:** React.js (UI for dream input, playback, and visualization)  
-- **Backend:** Node.js + Express (API handling, NLP integration, request routing)  
-- **NLP & AI:**  
-  - Hugging Face / OpenAI APIs for dream sentiment & meaning extraction  
-  - Custom RAG (Retrieval-Augmented Generation) with psychology & music theory references  
-- **Music Generation:**  
-  - Magenta.js / MIDI.js for composing melodies  
-  - Music21 / ABC notation for sheet music export  
-- **Database:** MongoDB (to store user dreams, generated music metadata)  
-- **Deployment:** Docker + AWS/GCP for scalability  
+### Current Choices  
+- **Frontend:** React.js (dream input, playback, visualization UI)  
+- **Backend:** Node.js + Express (API handling, NLP integration)  
+- **NLP & AI:** Hugging Face / OpenAI APIs for emotion & meaning extraction  
+- **Music Generation:** Magenta.js (for melody/MIDI generation)  
+- **Database:** MongoDB (storing user dreams & generated outputs)  
+
+### Roadmap (Optional Enhancements)  
+- Music21 or ABC notation for advanced sheet music export  
+- Cloud deployment (AWS/GCP + Docker) for scaling  
+- Retrieval-Augmented Generation (RAG) with psychology & music theory resources  
 
 ---
 
 ## ⚙️ Implementation Plan  
 
 1. **Input Handling**  
-   - Users type or record their dream.  
-   - NLP processes the text → extracts mood, symbols, emotions.  
+   - User enters or records dream description.  
+   - NLP extracts mood, symbols, and emotional context.  
 
-2. **Dream Analysis Engine**  
-   - Uses psychology + music theory dataset (RAG) to interpret meaning.  
-   - Maps dream emotions → tempo, key, and instrument selection.  
+2. **Dream Analysis**  
+   - Map moods → musical elements (tempo, scale, instrumentation).  
 
-3. **Music Generation Module**  
-   - Converts dream analysis → structured music plan (intro, chorus, bridge).  
-   - Generates MIDI + renders audio.  
-   - Exports sheet music notation.  
+3. **Music Generation**  
+   - Magenta.js composes melodies based on mapped parameters.  
+   - Export to MIDI and provide playback.  
 
-4. **Visualization Engine**  
-   - Assigns dream emotions → color gradients and waveform animations.  
+4. **Visualization**  
+   - Emotions mapped to color gradients + simple waveform animations.  
 
 5. **Output Delivery**  
-   - Users can:  
-     - 🎧 Listen to audio  
-     - 📝 Download sheet music  
-     - 🌈 Watch dream mood visualizer  
+   - 🎧 Play dream-inspired audio  
+   - 📝 View/download sheet music (future roadmap)  
+   - 🌈 Watch mood-based visualization  
 
 ---
 
@@ -76,40 +72,42 @@ This project not only focuses on creativity but also demonstrates strong program
 **AI Processing:**  
 - Mood: Joy + Nostalgia  
 - Tempo: 95 BPM (calm, flowing)  
-- Instruments: Piano + Strings + Synth Pads  
-- Visualization: Blue-gold gradient with flowing motion  
+- Instruments: Piano + Strings  
+- Visualization: Blue-gold gradient  
 
 **Output:**  
-- 🎶 Calming piano melody with string harmonies  
-- 📝 Sheet music (MIDI export)  
+- 🎶 Calm piano/strings melody (MIDI playback)  
 - 🌈 Animated visualization  
 
 ---
 
 ## 🔑 Evaluation Alignment  
 
-- **Correctness:**  
-   - Each dream maps consistently to a defined music plan using structured rules + AI models.  
-- **Efficiency:**  
-   - Caching results for repeated mood mappings, optimizing audio rendering pipeline.  
-- **Scalability:**  
-   - API-first modular architecture → backend services (analysis, generation, visualization) can scale separately.  
+- **Correctness:** Moods are mapped consistently to defined music rules.  
+- **Efficiency:** API requests and results cached for faster response.  
+- **Scalability:** Current single-service backend can expand into modular components.  
 
 ---
 
 ## 📜 License  
 
-MIT License — free for personal and academic use.  
+- **Project License:** MIT (ensure `LICENSE` file is included in repo).  
+- **Third-Party Tools & APIs:**  
+  - OpenAI/Hugging Face APIs → subject to their usage terms.  
+  - Magenta.js (Apache 2.0).  
+  - Future integrations (e.g., Music21) may have additional requirements.  
+
+Contributors must review and comply with respective licenses.  
 
 ---
 
 ## 🎥 Video Explanation (For Submission)  
 
 In the demo video:  
-1. Briefly introduce the problem and vision.  
-2. Explain the system workflow (Input → Analysis → Music → Output).  
-3. Highlight how correctness, efficiency, and scalability are achieved.  
-4. Show a short demo example of input/output.  
+1. Introduce the idea (dream → music).  
+2. Show how NLP maps dream emotions to music elements.  
+3. Explain Correctness, Efficiency, and Scalability principles.  
+4. Demo one input/output example.  
 
 ---
 
