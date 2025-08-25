@@ -13,7 +13,7 @@ class TestDreamAnalyzer:
     
     def setup_method(self):
         """Set up test fixtures."""
-        self.analyzer = DreamAnalyzer()
+        self.analyzer = DreamAnalyzer(random_seed=42)  # Fixed seed for deterministic tests
         self.sample_dreams = {
             "flying": "I was flying over a shimmering city at sunset, feeling free and peaceful.",
             "water": "I found myself swimming in crystal clear water, feeling calm and refreshed.",
@@ -290,8 +290,41 @@ class TestDreamAnalyzer:
         """Test analysis of very long dream text."""
         long_dream = "I was flying through the sky. " * 100  # Very long dream
         analysis = self.analyzer.analyze_dream(long_dream)
-        
+
         assert isinstance(analysis, ComprehensiveAnalysis)
         assert analysis.dream_text == long_dream
         assert analysis.overall_confidence >= 0
         # Should handle long text without errors
+
+    def test_deterministic_analysis_with_seed(self):
+        """Test that analysis is deterministic when using a fixed seed."""
+        dream_text = "I was flying over a beautiful city, feeling joyful."
+
+        # Create two analyzers with the same seed
+        analyzer1 = DreamAnalyzer(random_seed=123)
+        analyzer2 = DreamAnalyzer(random_seed=123)
+
+        analysis1 = analyzer1.analyze_dream(dream_text)
+        analysis2 = analyzer2.analyze_dream(dream_text)
+
+        # Musical parameters should be identical with same seed
+        assert analysis1.musical_parameters.key == analysis2.musical_parameters.key
+        assert analysis1.musical_parameters.instruments == analysis2.musical_parameters.instruments
+        assert analysis1.musical_parameters.tempo == analysis2.musical_parameters.tempo
+
+    def test_varied_analysis_without_seed(self):
+        """Test that analysis can vary when no seed is provided."""
+        dream_text = "I was flying over a beautiful city, feeling joyful."
+
+        # Create analyzers without fixed seeds
+        analyzer1 = DreamAnalyzer()
+        analyzer2 = DreamAnalyzer()
+
+        # Run multiple analyses to check for variation
+        analyses1 = [analyzer1.analyze_dream(dream_text) for _ in range(3)]
+        analyses2 = [analyzer2.analyze_dream(dream_text) for _ in range(3)]
+
+        # Should still produce valid analyses
+        for analysis in analyses1 + analyses2:
+            assert isinstance(analysis, ComprehensiveAnalysis)
+            assert analysis.overall_confidence >= 0

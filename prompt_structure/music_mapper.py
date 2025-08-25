@@ -6,6 +6,7 @@ for composition and generation purposes.
 """
 
 import json
+import random
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -78,12 +79,15 @@ class MusicMapper:
     specific musical parameters that can be used for composition.
     """
     
-    def __init__(self):
+    def __init__(self, random_seed: Optional[int] = None):
         self.prompt_builder = PromptBuilder()
         self.emotion_to_tempo = self._initialize_emotion_tempo_mapping()
         self.emotion_to_key = self._initialize_emotion_key_mapping()
         self.emotion_to_instruments = self._initialize_emotion_instrument_mapping()
         self.style_mappings = self._initialize_style_mappings()
+        self.random_seed = random_seed
+        if random_seed is not None:
+            random.seed(random_seed)
     
     def _initialize_emotion_tempo_mapping(self) -> Dict[str, Tuple[int, int]]:
         """Initialize emotion to tempo range mappings."""
@@ -148,20 +152,23 @@ class MusicMapper:
         }
     
     def map_emotions_to_music(
-        self, 
-        emotion_result: EmotionResult, 
+        self,
+        emotion_result: EmotionResult,
         dream_text: str = ""
     ) -> MusicalParameters:
         """
         Map emotion analysis results to musical parameters.
-        
+
         Args:
             emotion_result: Results from emotion extraction
             dream_text: Original dream text for additional context
-            
+
         Returns:
             MusicalParameters object with composition parameters
         """
+        # Reset random seed if one was provided for deterministic results
+        if self.random_seed is not None:
+            random.seed(self.random_seed)
         # Determine primary emotion for mapping
         primary_emotion = emotion_result.primary_emotions[0] if emotion_result.primary_emotions else "peace"
         
@@ -237,34 +244,47 @@ class MusicMapper:
     def _select_key(self, emotion_result: EmotionResult) -> Dict[str, str]:
         """Select musical key based on emotions."""
         primary_emotion = emotion_result.primary_emotions[0] if emotion_result.primary_emotions else "peace"
-        
+
         if primary_emotion in self.emotion_to_key:
             possible_keys = self.emotion_to_key[primary_emotion]
-            selected_key = possible_keys[0]  # Take first option for simplicity
+            # Add variety by randomly selecting from possible keys
+            selected_key = random.choice(possible_keys)
         else:
-            selected_key = MusicalKey.C_MAJOR  # Default
-        
+            # Default options with some variety
+            default_keys = [MusicalKey.C_MAJOR, MusicalKey.G_MAJOR, MusicalKey.F_MAJOR]
+            selected_key = random.choice(default_keys)
+
         key_info = selected_key.value
-        
+
         return {
             "signature": f"{key_info['key']} {key_info['mode']}",
             "mode": key_info["mode"],
             "reasoning": f"Selected for {primary_emotion}: {key_info['mood']}"
         }
     
-    def _select_instruments(self, emotion_result: EmotionResult) -> List[str]:
+    def _select_instruments(self, emotion_result: EmotionResult, max_instruments: int = 4) -> List[str]:
         """Select instruments based on emotions."""
         selected_instruments = set()
-        
+
         for emotion in emotion_result.primary_emotions:
             if emotion in self.emotion_to_instruments:
                 instruments = self.emotion_to_instruments[emotion]
-                selected_instruments.update(instruments[:2])  # Take top 2 for each emotion
-        
+                # Add variety by randomly selecting from available instruments
+                num_to_select = min(2, len(instruments))
+                selected = random.sample(instruments, num_to_select)
+                selected_instruments.update(selected)
+
         if not selected_instruments:
-            selected_instruments = {"piano", "strings"}  # Default
-        
-        return list(selected_instruments)[:4]  # Limit to 4 instruments
+            # Default options with variety
+            default_instruments = ["piano", "strings", "flute", "guitar", "harp"]
+            selected_instruments.update(random.sample(default_instruments, 2))
+
+        # Convert to list and limit, with some randomization in order
+        instrument_list = list(selected_instruments)
+        if len(instrument_list) > max_instruments:
+            instrument_list = random.sample(instrument_list, max_instruments)
+
+        return instrument_list
     
     def _determine_style(self, emotion_result: EmotionResult, dream_text: str) -> str:
         """Determine musical style based on emotions and dream content."""

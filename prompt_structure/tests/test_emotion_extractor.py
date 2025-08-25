@@ -147,12 +147,49 @@ class TestEmotionExtractor:
     def test_parse_emotion_response_embedded_json(self):
         """Test parsing JSON embedded in text response."""
         embedded_json = 'Here is the analysis: {"primary_emotions": ["joy"], "confidence_score": 0.8} and some more text.'
-        
+
         result = self.extractor._parse_emotion_response(embedded_json)
-        
+
         assert isinstance(result, dict)
         assert "primary_emotions" in result
         assert result["primary_emotions"] == ["joy"]
+
+    def test_parse_emotion_response_code_block(self):
+        """Test parsing JSON in code blocks."""
+        code_block_json = '''Here's the analysis:
+        ```json
+        {"primary_emotions": ["peace", "joy"], "confidence_score": 0.9}
+        ```
+        That's the result.'''
+
+        result = self.extractor._parse_emotion_response(code_block_json)
+
+        assert isinstance(result, dict)
+        assert "primary_emotions" in result
+        assert result["primary_emotions"] == ["peace", "joy"]
+
+    def test_parse_emotion_response_multiple_json_blocks(self):
+        """Test parsing when multiple JSON-like blocks exist."""
+        multiple_json = '''First block: {"invalid": "data"}
+        But the real result is: {"primary_emotions": ["wonder"], "confidence_score": 0.7}
+        And some other text with {braces}.'''
+
+        result = self.extractor._parse_emotion_response(multiple_json)
+
+        assert isinstance(result, dict)
+        assert "primary_emotions" in result
+        assert result["primary_emotions"] == ["wonder"]
+
+    def test_parse_emotion_response_balanced_braces(self):
+        """Test parsing with nested/balanced braces."""
+        nested_json = '''The analysis shows: {"primary_emotions": ["joy"], "emotional_intensity": {"joy": 8}, "confidence_score": 0.85}'''
+
+        result = self.extractor._parse_emotion_response(nested_json)
+
+        assert isinstance(result, dict)
+        assert "primary_emotions" in result
+        assert "emotional_intensity" in result
+        assert result["emotional_intensity"]["joy"] == 8
     
     def test_get_emotion_statistics(self):
         """Test emotion statistics calculation."""

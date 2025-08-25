@@ -95,10 +95,10 @@ class DreamAnalyzer:
     to provide comprehensive insights for music composition.
     """
     
-    def __init__(self):
+    def __init__(self, random_seed: Optional[int] = None):
         self.prompt_builder = PromptBuilder()
         self.emotion_extractor = EmotionExtractor()
-        self.music_mapper = MusicMapper()
+        self.music_mapper = MusicMapper(random_seed=random_seed)
         self.symbol_database = self._initialize_symbol_database()
         self.color_mappings = self._initialize_color_mappings()
     

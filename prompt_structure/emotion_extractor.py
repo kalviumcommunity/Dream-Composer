@@ -176,9 +176,26 @@ class EmotionExtractor:
             return json.loads(response)
         except json.JSONDecodeError:
             # Try to extract JSON from response if it's embedded in text
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group())
+            # Use patterns that prioritize complete, valid JSON structures
+            json_patterns = [
+                r'```json\s*(\{.*?\})\s*```',                    # Code block pattern
+                r'```\s*(\{.*?\})\s*```',                        # Generic code block
+                r'\{[^{}]*"primary_emotions"[^{}]*\}',           # Look for primary_emotions key
+                r'\{[^{}]*"confidence_score"[^{}]*\}',           # Look for confidence_score key
+                r'\{(?:[^{}]|"[^"]*")*"primary_emotions"(?:[^{}]|"[^"]*")*\}',  # More flexible primary_emotions
+                r'\{.*?\}(?=\s*$|\s*\n|\s*[.!?])',              # JSON ending with punctuation
+                r'\{.*?\}'                                       # Last resort: any JSON-like structure
+            ]
+
+            for pattern in json_patterns:
+                json_match = re.search(pattern, response, re.DOTALL)
+                if json_match:
+                    try:
+                        json_text = json_match.group(1) if json_match.lastindex else json_match.group()
+                        return json.loads(json_text)
+                    except (json.JSONDecodeError, IndexError):
+                        continue
+
             raise ValueError("Could not parse emotion response")
     
     def _fallback_emotion_analysis(self, dream_text: str) -> EmotionResult:

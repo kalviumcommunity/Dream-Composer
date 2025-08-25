@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Demo script for the Dream Composer Structure Prompt system.
 
@@ -7,12 +8,32 @@ to analyze dream descriptions and generate musical parameters.
 """
 
 import json
+import sys
+import os
 from prompt_structure import DreamAnalyzer, PromptBuilder, PromptType
+
+# Ensure UTF-8 encoding for console output
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+
+# Fallback emoji handling for terminals that don't support UTF-8
+def safe_print(text: str, fallback_text: str = None) -> None:
+    """Print text with emoji fallback for encoding issues."""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        if fallback_text:
+            print(fallback_text)
+        else:
+            # Remove emojis and special characters
+            safe_text = ''.join(char for char in text if ord(char) < 128)
+            print(safe_text)
 
 
 def main():
     """Main demonstration function."""
-    print("🎶 Dream Composer - Structure Prompt Demo 🎶")
+    safe_print("🎶 Dream Composer - Structure Prompt Demo 🎶",
+               "Dream Composer - Structure Prompt Demo")
     print("=" * 50)
     
     # Sample dream descriptions
@@ -35,22 +56,23 @@ def main():
         }
     ]
     
-    # Initialize the dream analyzer
+    # Initialize the dream analyzer with deterministic seed for consistent demo
     print("Initializing Dream Analyzer...")
-    analyzer = DreamAnalyzer()
-    print("✅ Dream Analyzer ready!\n")
+    analyzer = DreamAnalyzer(random_seed=42)  # Fixed seed for consistent demo output
+    safe_print("✅ Dream Analyzer ready!\n", "Dream Analyzer ready!\n")
     
     # Analyze each dream
     for i, dream in enumerate(sample_dreams, 1):
-        print(f"🌙 Dream {i}: {dream['title']}")
+        safe_print(f"🌙 Dream {i}: {dream['title']}",
+                   f"Dream {i}: {dream['title']}")
         print(f"Description: {dream['description']}")
         print("-" * 40)
-        
+
         # Perform comprehensive analysis
         analysis = analyzer.analyze_dream(dream['description'])
-        
+
         # Display results
-        print("📊 Analysis Results:")
+        safe_print("📊 Analysis Results:", "Analysis Results:")
         
         # Emotions
         emotions = analysis.emotion_result.primary_emotions
@@ -83,7 +105,7 @@ def main():
         print("\n" + "=" * 50 + "\n")
     
     # Demonstrate prompt building
-    print("🔧 Prompt Building Demo")
+    safe_print("🔧 Prompt Building Demo", "Prompt Building Demo")
     print("-" * 30)
     
     prompt_builder = PromptBuilder()
@@ -111,21 +133,21 @@ def main():
     
     # Show prompt statistics
     stats = prompt_builder.get_prompt_statistics()
-    print("📈 Prompt System Statistics:")
+    safe_print("📈 Prompt System Statistics:", "Prompt System Statistics:")
     print(f"  Total Templates: {stats['total_templates']}")
     print(f"  Available Types: {', '.join(stats['template_types'])}")
     print(f"  Templates with Examples: {stats['templates_with_examples']}")
     print()
-    
+
     # Demonstrate analysis summary
-    print("📋 Analysis Summary Example:")
+    safe_print("📋 Analysis Summary Example:", "Analysis Summary Example:")
     analysis = analyzer.analyze_dream(sample_dreams[0]['description'])
     summary = analyzer.get_analysis_summary(analysis)
-    
+
     print(json.dumps(summary, indent=2))
     print()
-    
-    print("🎉 Demo Complete!")
+
+    safe_print("🎉 Demo Complete!", "Demo Complete!")
     print("The Structure Prompt system is ready for integration with AI/NLP APIs!")
 
 
