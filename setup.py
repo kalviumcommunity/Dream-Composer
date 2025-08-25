@@ -7,5 +7,6 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         "pytest",
+        "torch>=2.0.0",
     ],
 )
