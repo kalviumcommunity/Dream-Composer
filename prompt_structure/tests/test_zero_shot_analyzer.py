@@ -416,3 +416,141 @@ class TestZeroShotDreamAnalyzer:
         # Should have some overlap in emotions detected
         unique_emotions = set(all_emotions)
         assert len(unique_emotions) <= len(all_emotions)  # Some repetition expected
+
+    def test_cache_key_generation(self):
+        """Test that cache keys are generated correctly and consistently."""
+        dream_text = "I was flying over a city."
+        context1 = "The dreamer is a pilot."
+        context2 = "The dreamer is afraid of heights."
+
+        # Same inputs should generate same cache key
+        key1 = self.analyzer._generate_cache_key(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS, dream_text, context1
+        )
+        key2 = self.analyzer._generate_cache_key(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS, dream_text, context1
+        )
+        assert key1 == key2
+
+        # Different contexts should generate different cache keys
+        key3 = self.analyzer._generate_cache_key(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS, dream_text, context2
+        )
+        assert key1 != key3
+
+        # Different tasks should generate different cache keys
+        key4 = self.analyzer._generate_cache_key(
+            ZeroShotTask.MUSICAL_STYLE_RECOMMENDATION, dream_text, context1
+        )
+        assert key1 != key4
+
+        # Cache keys should be strings and contain task name
+        assert isinstance(key1, str)
+        assert "dream_emotion_analysis" in key1
+
+    def test_cache_key_with_none_context(self):
+        """Test cache key generation with None context."""
+        dream_text = "I was swimming in the ocean."
+
+        key1 = self.analyzer._generate_cache_key(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS, dream_text, None
+        )
+        key2 = self.analyzer._generate_cache_key(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS, dream_text, ""
+        )
+
+        # None and empty string should generate the same key
+        assert key1 == key2
+
+    def test_improved_error_handling_json_decode_error(self):
+        """Test improved error handling for JSON decode errors."""
+        # Mock the _parse_zero_shot_response to raise JSONDecodeError
+        original_parse = self.analyzer._parse_zero_shot_response
+
+        def mock_parse_error(task, response):
+            raise json.JSONDecodeError("Invalid JSON", response, 0)
+
+        self.analyzer._parse_zero_shot_response = mock_parse_error
+
+        try:
+            result = self.analyzer.analyze_single_task(
+                ZeroShotTask.DREAM_EMOTION_ANALYSIS,
+                "Test dream"
+            )
+
+            # Should get fallback result
+            assert isinstance(result, ZeroShotAnalysisResult)
+            assert result.confidence == 0.2  # Fallback confidence
+            assert "fallback" in result.analysis["analysis"].lower()
+            assert "JSON parsing error" in result.analysis["error_info"]
+
+        finally:
+            # Restore original method
+            self.analyzer._parse_zero_shot_response = original_parse
+
+    def test_improved_error_handling_key_error(self):
+        """Test improved error handling for KeyError."""
+        # Mock the _parse_zero_shot_response to raise KeyError
+        original_parse = self.analyzer._parse_zero_shot_response
+
+        def mock_parse_key_error(task, response):
+            raise KeyError("confidence")
+
+        self.analyzer._parse_zero_shot_response = mock_parse_key_error
+
+        try:
+            result = self.analyzer.analyze_single_task(
+                ZeroShotTask.DREAM_EMOTION_ANALYSIS,
+                "Test dream"
+            )
+
+            # Should get fallback result
+            assert isinstance(result, ZeroShotAnalysisResult)
+            assert result.confidence == 0.2
+            assert "Missing key error" in result.analysis["error_info"]
+
+        finally:
+            # Restore original method
+            self.analyzer._parse_zero_shot_response = original_parse
+
+    def test_improved_error_handling_unexpected_error(self):
+        """Test improved error handling for unexpected errors."""
+        # Mock the _parse_zero_shot_response to raise unexpected error
+        original_parse = self.analyzer._parse_zero_shot_response
+
+        def mock_parse_unexpected_error(task, response):
+            raise RuntimeError("Unexpected error occurred")
+
+        self.analyzer._parse_zero_shot_response = mock_parse_unexpected_error
+
+        try:
+            result = self.analyzer.analyze_single_task(
+                ZeroShotTask.DREAM_EMOTION_ANALYSIS,
+                "Test dream"
+            )
+
+            # Should get fallback result
+            assert isinstance(result, ZeroShotAnalysisResult)
+            assert result.confidence == 0.2
+            assert "Unexpected error" in result.analysis["error_info"]
+
+        finally:
+            # Restore original method
+            self.analyzer._parse_zero_shot_response = original_parse
+
+    def test_parse_response_with_logging_context(self):
+        """Test that response parsing includes proper logging context."""
+        valid_response = json.dumps({
+            "primary_emotions": ["joy"],
+            "confidence": 0.8
+        })
+
+        # This should not raise any errors and should parse successfully
+        result = self.analyzer._parse_zero_shot_response(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS,
+            valid_response
+        )
+
+        assert isinstance(result, dict)
+        assert "primary_emotions" in result
+        assert result["confidence"] == 0.8

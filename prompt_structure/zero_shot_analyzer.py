@@ -7,6 +7,8 @@ without requiring training examples, leveraging AI models' pre-trained knowledge
 
 import json
 import re
+import hashlib
+import logging
 from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,6 +16,9 @@ from datetime import datetime
 from .zero_shot_prompts import ZeroShotPromptBuilder, ZeroShotTask
 from .emotion_extractor import EmotionResult
 from .music_mapper import MusicalParameters
+
+# Configure logging for zero-shot analysis
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -73,28 +78,53 @@ class ZeroShotDreamAnalyzer:
         self.prompt_builder = ZeroShotPromptBuilder()
         self.analysis_cache = {}  # Simple cache for repeated analyses
     
+    def _generate_cache_key(
+        self,
+        task: ZeroShotTask,
+        dream_text: str,
+        additional_context: Optional[str] = None
+    ) -> str:
+        """
+        Generate a robust cache key that includes all relevant parameters.
+
+        Uses SHA-256 hashing to avoid collisions and ensure consistency
+        across different Python processes.
+        """
+        # Create a deterministic string that includes all parameters
+        key_components = [
+            task.value,
+            dream_text,
+            additional_context or ""
+        ]
+
+        # Join components and create SHA-256 hash for consistency
+        combined_key = "|".join(key_components)
+        hash_object = hashlib.sha256(combined_key.encode('utf-8'))
+        return f"{task.value}:{hash_object.hexdigest()[:16]}"  # Use first 16 chars for readability
+
     def analyze_single_task(
-        self, 
-        task: ZeroShotTask, 
+        self,
+        task: ZeroShotTask,
         dream_text: str,
         additional_context: Optional[str] = None,
         use_cache: bool = True
     ) -> ZeroShotAnalysisResult:
         """
         Perform zero-shot analysis for a single task.
-        
+
         Args:
             task: The zero-shot task to perform
             dream_text: The dream description to analyze
             additional_context: Optional additional context
             use_cache: Whether to use cached results
-            
+
         Returns:
             ZeroShotAnalysisResult containing the analysis
         """
-        # Check cache first
-        cache_key = f"{task.value}:{hash(dream_text)}"
+        # Generate robust cache key
+        cache_key = self._generate_cache_key(task, dream_text, additional_context)
         if use_cache and cache_key in self.analysis_cache:
+            logger.debug(f"Cache hit for task {task.value}")
             return self.analysis_cache[cache_key]
         
         # Build the zero-shot prompt
@@ -109,7 +139,7 @@ class ZeroShotDreamAnalyzer:
         try:
             analysis = self._parse_zero_shot_response(task, simulated_response)
             confidence = analysis.get("confidence", 0.5)
-            
+
             result = ZeroShotAnalysisResult(
                 task=task,
                 analysis=analysis,
@@ -117,16 +147,26 @@ class ZeroShotDreamAnalyzer:
                 raw_response=simulated_response,
                 timestamp=datetime.now().isoformat()
             )
-            
+
             # Cache the result
             if use_cache:
                 self.analysis_cache[cache_key] = result
-            
+                logger.debug(f"Cached result for task {task.value}")
+
             return result
-            
+
+        except (json.JSONDecodeError, ValueError) as e:
+            # Specific JSON parsing errors
+            logger.warning(f"JSON parsing failed for task {task.value}: {e}")
+            return self._fallback_analysis(task, dream_text, f"JSON parsing error: {e}")
+        except KeyError as e:
+            # Missing required keys in response
+            logger.warning(f"Missing required key in response for task {task.value}: {e}")
+            return self._fallback_analysis(task, dream_text, f"Missing key error: {e}")
         except Exception as e:
-            # Fallback analysis
-            return self._fallback_analysis(task, dream_text)
+            # Unexpected errors - log for debugging
+            logger.error(f"Unexpected error in task {task.value}: {type(e).__name__}: {e}")
+            return self._fallback_analysis(task, dream_text, f"Unexpected error: {e}")
     
     def analyze_comprehensive(
         self, 
@@ -163,9 +203,18 @@ class ZeroShotDreamAnalyzer:
                 result = self.analyze_single_task(task, dream_text, additional_context)
                 results[task] = result
                 confidences.append(result.confidence)
+                logger.debug(f"Successfully completed task {task.value}")
+            except (json.JSONDecodeError, ValueError) as e:
+                # JSON parsing errors - log and continue
+                logger.warning(f"JSON parsing failed for task {task.value} in comprehensive analysis: {e}")
+                continue
+            except KeyError as e:
+                # Missing required keys - log and continue
+                logger.warning(f"Missing required key for task {task.value} in comprehensive analysis: {e}")
+                continue
             except Exception as e:
-                # Continue with other tasks if one fails
-                print(f"Warning: Failed to analyze task {task}: {e}")
+                # Unexpected errors - log and continue with other tasks
+                logger.error(f"Unexpected error in comprehensive analysis for task {task.value}: {type(e).__name__}: {e}")
                 continue
         
         # Calculate overall confidence
@@ -300,36 +349,78 @@ class ZeroShotDreamAnalyzer:
         return json.dumps(response, indent=2)
     
     def _parse_zero_shot_response(self, task: ZeroShotTask, response: str) -> Dict[str, Any]:
-        """Parse zero-shot AI response into structured format."""
+        """
+        Parse zero-shot AI response into structured format.
+
+        Args:
+            task: The zero-shot task for context
+            response: The raw AI response to parse
+
+        Returns:
+            Parsed response as dictionary
+
+        Raises:
+            json.JSONDecodeError: When JSON parsing fails
+            ValueError: When no valid JSON structure is found
+        """
+        logger.debug(f"Parsing response for task {task.value}")
+
         try:
-            return json.loads(response)
-        except json.JSONDecodeError:
-            # Try to extract JSON from response
+            parsed = json.loads(response)
+            logger.debug(f"Successfully parsed direct JSON for task {task.value}")
+            return parsed
+        except json.JSONDecodeError as e:
+            logger.debug(f"Direct JSON parsing failed for task {task.value}: {e}")
+
+            # Try to extract JSON from response using multiple patterns
             json_patterns = [
-                r'```json\s*(\{.*?\})\s*```',
-                r'\{[^{}]*"confidence"[^{}]*\}',
-                r'\{.*?\}'
+                (r'```json\s*(\{.*?\})\s*```', "JSON code block"),
+                (r'\{[^{}]*"confidence"[^{}]*\}', "confidence-containing JSON"),
+                (r'\{.*?\}', "any JSON-like structure")
             ]
-            
-            for pattern in json_patterns:
+
+            for pattern, description in json_patterns:
                 match = re.search(pattern, response, re.DOTALL)
                 if match:
                     try:
                         json_text = match.group(1) if match.lastindex else match.group()
-                        return json.loads(json_text)
-                    except json.JSONDecodeError:
+                        parsed = json.loads(json_text)
+                        logger.debug(f"Successfully extracted JSON using {description} for task {task.value}")
+                        return parsed
+                    except json.JSONDecodeError as parse_error:
+                        logger.debug(f"Failed to parse {description} for task {task.value}: {parse_error}")
                         continue
-            
-            raise ValueError("Could not parse zero-shot response")
+
+            # If all parsing attempts fail, raise with context
+            error_msg = f"Could not parse zero-shot response for task {task.value}. Response length: {len(response)}"
+            logger.warning(error_msg)
+            raise ValueError(error_msg)
     
-    def _fallback_analysis(self, task: ZeroShotTask, dream_text: str) -> ZeroShotAnalysisResult:
-        """Provide fallback analysis when parsing fails."""
+    def _fallback_analysis(
+        self,
+        task: ZeroShotTask,
+        dream_text: str,
+        error_message: Optional[str] = None
+    ) -> ZeroShotAnalysisResult:
+        """
+        Provide fallback analysis when parsing fails.
+
+        Args:
+            task: The zero-shot task that failed
+            dream_text: The original dream text
+            error_message: Optional error message for debugging
+        """
+        logger.info(f"Using fallback analysis for task {task.value}")
+        if error_message:
+            logger.debug(f"Fallback reason: {error_message}")
+
         fallback_analysis = {
             "analysis": f"Fallback analysis for {task.value}",
             "confidence": 0.2,
-            "note": "Analysis performed using fallback method"
+            "note": "Analysis performed using fallback method",
+            "error_info": error_message if error_message else "Unknown error"
         }
-        
+
         return ZeroShotAnalysisResult(
             task=task,
             analysis=fallback_analysis,
