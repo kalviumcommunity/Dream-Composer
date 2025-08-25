@@ -466,14 +466,40 @@ class OneShotPromptBuilder:
             task, dream_text, selected_example, additional_context
         )
 
+        # Safe example text truncation
+        example_text = None
+        if selected_example and selected_example.dream_text:
+            try:
+                # Ensure safe UTF-8 handling and length checking
+                text = str(selected_example.dream_text)
+                if len(text) > 100:
+                    # Find a safe truncation point to avoid breaking UTF-8
+                    truncate_point = 100
+                    while truncate_point > 80 and not text[truncate_point-1].isspace():
+                        truncate_point -= 1
+                    example_text = text[:truncate_point].rstrip() + "..."
+                else:
+                    example_text = text
+            except (AttributeError, TypeError, UnicodeError):
+                example_text = "Example text unavailable"
+
+        # Safe example quality calculation
+        example_quality = 0.0
+        if selected_example:
+            try:
+                example_quality = self.calculate_example_quality(selected_example)
+            except (AttributeError, TypeError, ValueError) as e:
+                logger.warning(f"Failed to calculate example quality: {e}")
+                example_quality = 0.0
+
         return {
             "system_message": system_message,
             "user_message": user_message,
             "task": task.value,
             "complexity": complexity.value,
             "strategy": self.config.strategy.value,
-            "selected_example": selected_example.dream_text[:100] + "..." if selected_example else None,
-            "example_quality": self.calculate_example_quality(selected_example) if selected_example else 0.0,
+            "selected_example": example_text,
+            "example_quality": example_quality,
             "keywords": keywords[:10]
         }
 
@@ -613,9 +639,23 @@ class OneShotPromptBuilder:
             all_examples.extend(examples)
 
         for example in all_examples:
-            # Quality distribution
+            # Quality distribution with non-overlapping buckets
             quality = self.calculate_example_quality(example)
-            quality_bucket = f"{int(quality * 10) / 10:.1f}-{int(quality * 10 + 1) / 10:.1f}"
+
+            # Create non-overlapping quality buckets using half-open intervals [a, b)
+            if quality < 0.5:
+                quality_bucket = "[0.0, 0.5)"
+            elif quality < 0.6:
+                quality_bucket = "[0.5, 0.6)"
+            elif quality < 0.7:
+                quality_bucket = "[0.6, 0.7)"
+            elif quality < 0.8:
+                quality_bucket = "[0.7, 0.8)"
+            elif quality < 0.9:
+                quality_bucket = "[0.8, 0.9)"
+            else:
+                quality_bucket = "[0.9, 1.0]"
+
             stats["quality_distribution"][quality_bucket] = stats["quality_distribution"].get(quality_bucket, 0) + 1
 
             # Complexity distribution

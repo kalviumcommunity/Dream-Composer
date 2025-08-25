@@ -527,12 +527,105 @@ class TestOneShotDreamAnalyzer:
             # Create analyzer with specific strategy
             config = OneShotConfig(strategy=strategy)
             analyzer = OneShotDreamAnalyzer(config)
-            
+
             result = analyzer.analyze_single_task(
                 ZeroShotTask.DREAM_EMOTION_ANALYSIS,
                 self.sample_dreams["simple"]
             )
-            
+
             assert isinstance(result, OneShotAnalysisResult)
             assert result.strategy_used == strategy
             assert result.confidence > 0.0
+
+    def test_update_config(self):
+        """Test updating configuration."""
+        # Create new configuration
+        new_config = OneShotConfig(
+            strategy=OneShotStrategy.REPRESENTATIVE,
+            quality_threshold=0.9,
+            relevance_weight=0.8
+        )
+
+        # Update configuration
+        self.analyzer.update_config(new_config)
+
+        # Verify configuration was updated
+        assert self.analyzer.prompt_builder.config.strategy == OneShotStrategy.REPRESENTATIVE
+        assert self.analyzer.prompt_builder.config.quality_threshold == 0.9
+        assert self.analyzer.prompt_builder.config.relevance_weight == 0.8
+
+        # Cache should be cleared
+        assert len(self.analyzer.analysis_cache) == 0
+
+    def test_get_config_hash(self):
+        """Test configuration hash generation."""
+        hash1 = self.analyzer.get_config_hash()
+
+        # Hash should be consistent
+        hash2 = self.analyzer.get_config_hash()
+        assert hash1 == hash2
+
+        # Hash should change when config changes
+        self.analyzer.change_strategy(OneShotStrategy.REPRESENTATIVE)
+        hash3 = self.analyzer.get_config_hash()
+        assert hash1 != hash3
+
+    def test_cache_key_includes_config(self):
+        """Test that cache keys include configuration parameters."""
+        # Generate cache key with current config
+        key1 = self.analyzer._generate_cache_key(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS,
+            "test dream"
+        )
+
+        # Change configuration
+        self.analyzer.change_strategy(OneShotStrategy.REPRESENTATIVE)
+
+        # Generate cache key with new config
+        key2 = self.analyzer._generate_cache_key(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS,
+            "test dream"
+        )
+
+        # Keys should be different due to config change
+        assert key1 != key2
+
+    def test_safe_example_text_handling(self):
+        """Test safe handling of example text in prompt building."""
+        # Test with normal text
+        result = self.analyzer.analyze_single_task(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS,
+            "I was flying over a city"
+        )
+
+        assert isinstance(result.example_used, (str, type(None)))
+
+        # Test with very short dream
+        result = self.analyzer.analyze_single_task(
+            ZeroShotTask.DREAM_EMOTION_ANALYSIS,
+            "Dream"
+        )
+
+        assert isinstance(result.example_used, (str, type(None)))
+
+    def test_quality_distribution_buckets(self):
+        """Test that quality distribution uses non-overlapping buckets."""
+        # Perform some analyses to generate statistics
+        for dream in self.sample_dreams.values():
+            self.analyzer.analyze_single_task(
+                ZeroShotTask.DREAM_EMOTION_ANALYSIS,
+                dream
+            )
+
+        metrics = self.analyzer.get_performance_metrics()
+        db_stats = metrics["example_database_stats"]
+        quality_dist = db_stats["quality_distribution"]
+
+        # Check that buckets are non-overlapping
+        expected_buckets = [
+            "[0.0, 0.5)", "[0.5, 0.6)", "[0.6, 0.7)",
+            "[0.7, 0.8)", "[0.8, 0.9)", "[0.9, 1.0]"
+        ]
+
+        for bucket in quality_dist.keys():
+            assert bucket in expected_buckets, f"Unexpected bucket: {bucket}"

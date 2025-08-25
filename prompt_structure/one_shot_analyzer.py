@@ -113,15 +113,26 @@ class OneShotDreamAnalyzer:
         dream_text: str,
         additional_context: Optional[str] = None
     ) -> str:
-        """Generate cache key for one-shot analysis."""
+        """Generate cache key for one-shot analysis including config parameters."""
+        # Include all relevant config parameters that affect example selection
+        config = self.prompt_builder.config
+        config_components = [
+            config.strategy.value,
+            str(config.quality_threshold),
+            str(config.relevance_weight),
+            str(config.representativeness_weight),
+            str(config.use_complexity_boost),
+            str(config.fallback_to_representative)
+        ]
+
         key_components = [
             "one_shot",
             task.value,
-            self.prompt_builder.config.strategy.value,
+            "|".join(config_components),
             dream_text,
             additional_context or ""
         ]
-        
+
         combined_key = "|".join(key_components)
         hash_object = hashlib.sha256(combined_key.encode('utf-8'))
         return f"oneshot:{task.value}:{hash_object.hexdigest()[:16]}"
@@ -518,6 +529,33 @@ class OneShotDreamAnalyzer:
 
         # Clear cache since strategy affects example selection
         self.clear_cache()
+
+    def update_config(self, new_config: OneShotConfig) -> None:
+        """
+        Update the configuration for future analyses.
+
+        Args:
+            new_config: The new configuration to use
+        """
+        old_config = self.prompt_builder.config
+        self.prompt_builder.config = new_config
+        logger.info(f"Updated one-shot configuration")
+        logger.debug(f"Strategy: {old_config.strategy.value} -> {new_config.strategy.value}")
+        logger.debug(f"Quality threshold: {old_config.quality_threshold} -> {new_config.quality_threshold}")
+
+        # Clear cache since config changes affect example selection and caching
+        self.clear_cache()
+
+    def get_config_hash(self) -> str:
+        """
+        Get a hash of the current configuration for cache validation.
+
+        Returns:
+            SHA-256 hash of the current configuration
+        """
+        config = self.prompt_builder.config
+        config_string = f"{config.strategy.value}|{config.quality_threshold}|{config.relevance_weight}|{config.representativeness_weight}|{config.use_complexity_boost}|{config.fallback_to_representative}"
+        return hashlib.sha256(config_string.encode('utf-8')).hexdigest()[:16]
 
     def get_strategy_comparison(self, dream_text: str, task: ZeroShotTask) -> Dict[str, Any]:
         """
